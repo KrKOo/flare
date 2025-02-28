@@ -17,14 +17,16 @@ def parse_args():
     tunnel_parser.add_argument("--port", type=int, required=True, help="Port number for the tunnel")
     tunnel_parser.add_argument("--name", type=str, required=True, help="Name of the tunnel/subdomain")
 
+    tunnel_parser.add_argument("--server", type=str, help="Server address", default=os.environ.get("FLARE_SERVER", "localhost"))
+
     return parser.parse_args()
 
 
-def create_tunnel(port, name):
+def create_tunnel(server, port, name):
     print(f"Creating tunnel on port {port} with name {name}")
 
     config = {
-        "serverAddr": "localhost",
+        "serverAddr": server,
         "serverPort": 7000,
         "proxies": [
             {
@@ -56,7 +58,7 @@ def main():
     args = parse_args()
 
     if args.command == "tunnel":
-        create_tunnel(args.port, args.name)
+        create_tunnel(args.server, args.port, args.name)
 
 if __name__ == '__main__':
     main()
