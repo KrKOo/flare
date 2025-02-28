@@ -3,7 +3,6 @@ import argparse
 import tempfile
 import subprocess
 import json
-import importlib
 import requests
 import shutil
 import tarfile
@@ -20,6 +19,8 @@ def parse_args():
     tunnel_parser.add_argument("--name", type=str, required=True, help="Name of the tunnel/subdomain")
 
     tunnel_parser.add_argument("--server", type=str, help="Server address", default=os.environ.get("FLARE_SERVER", "localhost"))
+    tunnel_parser.add_argument("--server-port", type=int, help="Server port", default=os.environ.get("FLARE_SERVER_PORT", 7000))
+
 
     return parser.parse_args()
 
@@ -52,17 +53,17 @@ def download_and_extract_frpc(url: str, output_path: str = "/tmp/frpc"):
         if os.path.exists(extract_path):
             shutil.rmtree(extract_path)
 
-def create_tunnel(server, port, name):
-    print(f"Creating tunnel on port {port} with name {name}")
+def create_tunnel(server, server_port, local_port, name):
+    print(f"Creating tunnel on port {local_port} with name {name}")
 
     config = {
         "serverAddr": server,
-        "serverPort": 7000,
+        "serverPort": server_port,
         "proxies": [
             {
                 "name": name,
                 "type": "http",
-                "localPort": port,
+                "localPort": local_port,
                 "subdomain": name
             }
         ]
@@ -89,7 +90,7 @@ def main():
     args = parse_args()
 
     if args.command == "tunnel":
-        create_tunnel(args.server, args.port, args.name)
+        create_tunnel(args.server, args.server_port, args.port, args.name)
 
 if __name__ == '__main__':
     main()
