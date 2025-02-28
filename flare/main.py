@@ -6,7 +6,12 @@ import json
 import requests
 import shutil
 import tarfile
+import signal
 
+# ENV variables:
+# FLARE_SERVER: The frp server address
+# FLARE_SERVER_PORT: The frp server port
+# FLARE_PUBLIC_URL: The public url to access the services
 
 FRP_URL = "https://github.com/fatedier/frp/releases/download/v0.61.1/frp_0.61.1_linux_amd64.tar.gz"
 
@@ -54,8 +59,6 @@ def download_and_extract_frpc(url: str, output_path: str = "/tmp/frpc"):
             shutil.rmtree(extract_path)
 
 def create_tunnel(server, server_port, local_port, name):
-    print(f"Creating tunnel on port {local_port} with name {name}")
-
     config = {
         "serverAddr": server,
         "serverPort": server_port,
@@ -69,22 +72,32 @@ def create_tunnel(server, server_port, local_port, name):
         ]
     }
 
-    with open(f"{tempfile.mktemp()}.json", "w") as f:
-        f.write(json.dumps(config))
-
-    print("Config: ", f.name)
+    with open(f"{tempfile.mktemp()}.json", "w") as config_file:
+        config_file.write(json.dumps(config))
 
     frpc_path = "/tmp/frpc"
     if not os.path.exists(frpc_path):
         download_and_extract_frpc(FRP_URL, frpc_path)
 
-    proc = subprocess.run([frpc_path, "-c", f.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    public_url = os.getenv("FLARE_PUBLIC_URL", "")
+    
+    if public_url:
+        print(f"This is the url for accessing your service: https://{name}.{public_url}")
+    else:
+        print(f'Tunneling service to subdomain "{name}".')
 
-    for line in proc.stdout.decode().split("\n"):
-        print(line)
+    try:
+        proc = subprocess.run([frpc_path, "-c", config_file.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except KeyboardInterrupt:
+        proc.send_signal(signal.SIGINT)
+        proc.wait()
+    finally:
+        os.remove(config_file.name)
 
     if proc.returncode != 0:
-        print("frpc failed")
+        print("frpc failed with return code: ", proc.returncode)
+        return
+
 
 def main():
     args = parse_args()
