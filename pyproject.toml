@@ -8,11 +8,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "requests (>=2.32.3,<3.0.0)"
 ]
 
 [tool.poetry]
-packages = [{include = "flare"},
-            {include = "data"}]
+packages = [{include = "flare"}]
 
 
 [build-system]

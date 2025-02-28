@@ -1,13 +1,15 @@
-import importlib.resources
 import os
-import sys
 import argparse
 import tempfile
 import subprocess
-import urllib.request
 import json
 import importlib
+import requests
+import shutil
+import tarfile
 
+
+FRP_URL = "https://github.com/fatedier/frp/releases/download/v0.61.1/frp_0.61.1_linux_amd64.tar.gz"
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tunnel command parser")
@@ -21,6 +23,34 @@ def parse_args():
 
     return parser.parse_args()
 
+def download_and_extract_frpc(url: str, output_path: str = "/tmp/frpc"):
+    temp_tar_path = "/tmp/frp.tar.gz"
+    extract_path = "/tmp/frp_extracted"
+    
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        
+        with open(temp_tar_path, 'wb') as f:
+            shutil.copyfileobj(response.raw, f)
+        
+        with tarfile.open(temp_tar_path, "r:gz") as tar:
+            tar.extractall(extract_path)
+        
+        for root, _, files in os.walk(extract_path):
+            if "frpc" in files:
+                frpc_path = os.path.join(root, "frpc")
+                shutil.move(frpc_path, output_path)
+                os.chmod(output_path, 0o755)  # Make it executable
+                break
+        else:
+            raise FileNotFoundError("frpc file not found in the archive")
+        
+    finally:
+        if os.path.exists(temp_tar_path):
+            os.remove(temp_tar_path)
+        if os.path.exists(extract_path):
+            shutil.rmtree(extract_path)
 
 def create_tunnel(server, port, name):
     print(f"Creating tunnel on port {port} with name {name}")
@@ -43,8 +73,9 @@ def create_tunnel(server, port, name):
 
     print("Config: ", f.name)
 
-    frpc_path = importlib.resources.files("data") / "frpc"
-
+    frpc_path = "/tmp/frpc"
+    if not os.path.exists(frpc_path):
+        download_and_extract_frpc(FRP_URL, frpc_path)
 
     proc = subprocess.run([frpc_path, "-c", f.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
