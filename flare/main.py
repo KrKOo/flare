@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import tempfile
 import subprocess
@@ -87,16 +88,17 @@ def create_tunnel(server, server_port, local_port, name):
         print(f'Tunneling service to subdomain "{name}".')
 
     try:
-        proc = subprocess.run([frpc_path, "-c", config_file.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen([frpc_path, "-c", config_file.name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
+        for line in proc.stdout:
+            print(line, end="")
+
     except KeyboardInterrupt:
         proc.send_signal(signal.SIGINT)
         proc.wait()
     finally:
+        print("\033[0m", end="", flush=True) # Reset terminal color
         os.remove(config_file.name)
-
-    if proc.returncode != 0:
-        print("frpc failed with return code: ", proc.returncode)
-        return
 
 
 def main():
